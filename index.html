@@ -1,12 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Web Audio Reverb Test</title>
+  <meta charset="UTF-8" />
+  <title>Simple Recorder Player</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+    }
+
+    button {
+      margin-right: 10px;
+      padding: 10px 14px;
+    }
+
+    input[type="range"] {
+      width: 200px;
+      display: block;
+      margin-top: 20px;
+    }
+  </style>
 </head>
 <body>
-  <h3>Open Console. Click to start audio.</h3>
-  <button id="start">START</button>
+
+  <button id="start">Start Rec</button>
+  <button id="stop">Stop Rec</button>
+
+  <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" />
 
   <script src="main.js"></script>
 </body>

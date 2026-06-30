@@ -1,13 +1,27 @@
 let ctx;
-let input;
-let output;
+let micStream;
+let source;
 
-document.getElementById("start").onclick = async () => {
+let recorderNode;
+let recordedBuffer = null;
+
+let outputGain;
+let inputGain;
+
+let mediaRecorder;
+let chunks = [];
+
+const MAX_DURATION = 10; // seconds
+let recordingTimeout = null;
+
+// -------------------------
+// INIT AUDIO
+// -------------------------
+async function initAudio() {
+  if (ctx) return;
+
   ctx = new (window.AudioContext || window.webkitAudioContext)();
 
-  // ---------------------------
-  // MIC INPUT
-  // ---------------------------
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: {
       echoCancellation: false,
@@ -16,89 +30,100 @@ document.getElementById("start").onclick = async () => {
     }
   });
 
-  input = ctx.createMediaStreamSource(stream);
+  micStream = stream;
 
-  output = ctx.createGain();
-  output.gain.value = 0.9;
+  source = ctx.createMediaStreamSource(stream);
 
-  // ---------------------------
-  // DRY/WET MIX
-  // ---------------------------
-  const dry = ctx.createGain();
-  dry.gain.value = 0.6;
+  inputGain = ctx.createGain();
+  inputGain.gain.value = 1.0;
 
-  const wet = ctx.createGain();
-  wet.gain.value = 0.6;
+  outputGain = ctx.createGain();
+  outputGain.gain.value = 0.8;
 
-  input.connect(dry);
-  dry.connect(output);
+  source.connect(inputGain);
+  inputGain.connect(outputGain);
+  outputGain.connect(ctx.destination);
+}
 
-  // ---------------------------
-  // SIMPLE SCHROEDER REVERB
-  // ---------------------------
-  function comb(delayTime, feedbackGain) {
-    const delay = ctx.createDelay();
-    delay.delayTime.value = delayTime;
+// -------------------------
+// RECORD USING MEDIARECORDER
+// -------------------------
+function startRecording() {
+  chunks = [];
+  recordedBuffer = null;
 
-    const feedback = ctx.createGain();
-    feedback.gain.value = feedbackGain;
+  const stream = micStream;
 
-    const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = 3000;
+  mediaRecorder = new MediaRecorder(stream);
 
-    delay.connect(filter);
-    filter.connect(feedback);
-    feedback.connect(delay);
+  mediaRecorder.ondataavailable = (e) => {
+    chunks.push(e.data);
+  };
 
-    return delay;
+  mediaRecorder.onstop = async () => {
+    const blob = new Blob(chunks, { type: "audio/webm" });
+    const arrayBuffer = await blob.arrayBuffer();
+
+    recordedBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+    playBuffer();
+  };
+
+  mediaRecorder.start();
+
+  // safety stop
+  recordingTimeout = setTimeout(() => {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      mediaRecorder.stop();
+    }
+  }, MAX_DURATION * 1000);
+}
+
+// -------------------------
+// STOP RECORDING
+// -------------------------
+function stopRecording() {
+  if (recordingTimeout) {
+    clearTimeout(recordingTimeout);
+    recordingTimeout = null;
   }
 
-  const comb1 = comb(0.0297, 0.805);
-  const comb2 = comb(0.0371, 0.827);
-  const comb3 = comb(0.0411, 0.783);
-  const comb4 = comb(0.0437, 0.764);
-
-  const mix = ctx.createGain();
-  mix.gain.value = 0.5;
-
-  input.connect(comb1);
-  input.connect(comb2);
-  input.connect(comb3);
-  input.connect(comb4);
-
-  comb1.connect(mix);
-  comb2.connect(mix);
-  comb3.connect(mix);
-  comb4.connect(mix);
-
-  // ---------------------------
-  // ALLPASS (diffusion)
-  // ---------------------------
-  function allpass(time) {
-    const delay = ctx.createDelay();
-    delay.delayTime.value = time;
-
-    const feedback = ctx.createGain();
-    feedback.gain.value = 0.5;
-
-    delay.connect(feedback);
-    feedback.connect(delay);
-
-    return delay;
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
   }
+}
 
-  const ap1 = allpass(0.005);
-  const ap2 = allpass(0.0017);
+// -------------------------
+// PLAYBACK
+// -------------------------
+function playBuffer() {
+  if (!recordedBuffer) return;
 
-  mix.connect(ap1);
-  ap1.connect(ap2);
+  const src = ctx.createBufferSource();
+  src.buffer = recordedBuffer;
 
-  ap2.connect(wet);
-  wet.connect(output);
+  const gain = ctx.createGain();
+  gain.gain.value = outputGain.gain.value;
 
-  // output to speakers
-  output.connect(ctx.destination);
+  src.connect(gain);
+  gain.connect(ctx.destination);
 
-  console.log("Audio started");
+  src.start();
+}
+
+// -------------------------
+// UI
+// -------------------------
+document.getElementById("start").onclick = async () => {
+  await initAudio();
+  startRecording();
+};
+
+document.getElementById("stop").onclick = () => {
+  stopRecording();
+};
+
+document.getElementById("volume").oninput = (e) => {
+  const v = parseFloat(e.target.value);
+  if (outputGain) outputGain.gain.value = v;
 };
