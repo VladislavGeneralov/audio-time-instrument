@@ -5,65 +5,196 @@
   <title>Loooooper</title>
 
   <style>
-    body {
-      font-family: sans-serif;
-      margin: 0;
-      height: 100vh;
+    :root {
+      color-scheme: dark;
+    }
 
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Inter, "Segoe UI", sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, #1a1a1a 0%, #080808 50%, #000 100%);
+      color: #f5f5f5;
       display: flex;
       justify-content: center;
-      align-items: center;
+      align-items: flex-start;
+      overflow-x: hidden;
+      padding: 32px 16px;
+    }
 
-      overflow: hidden;
+    .players {
+      display: grid;
+      grid-template-columns: repeat(2, min-content);
+      gap: 20px;
+      justify-content: center;
+    }
+
+    .player-title {
+      grid-column: 1 / -1;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(245, 245, 245, 0.55);
     }
 
     .controls {
+      width: fit-content;
+      max-width: min(540px, 86vw);
+      display: grid;
+      grid-template-columns: 150px max-content;
+      gap: 16px;
+      padding: 24px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 0;
+      background: rgba(255,255,255,0.04);
+      box-shadow: 0 16px 60px rgba(0,0,0,0.45);
+      backdrop-filter: blur(18px);
+      align-items: center;
+    }
+
+    .left-panel {
       display: flex;
       flex-direction: column;
       align-items: center;
-
-      gap: 35px;
-
-      padding: 40px;
+      justify-content: center;
+      gap: 14px;
+      height: 100%;
+      min-height: 300px;
+      padding: 18px 0 12px;
     }
 
     .buttons {
       display: flex;
-      gap: 20px;
+      gap: 12px;
+      width: 100%;
+      justify-content: center;
+      margin-left: 6px;
+      margin-right: 6px;
     }
 
     button {
-      padding: 20px 28px;
-      font-size: 22px;
+      padding: 14px 18px;
+      font-size: 18px;
+      background: linear-gradient(135deg, #1d1d1d, #0f0f0f);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.24);
+      border-radius: 0;
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      border-color: #fff;
     }
 
     .volume-container {
       height: 220px;
-
       display: flex;
       justify-content: center;
       align-items: center;
     }
 
-    #volume {
+    .volume-slider {
       writing-mode: bt-lr;
       -webkit-appearance: slider-vertical;
-
+      appearance: slider-vertical;
       width: 30px;
       height: 220px;
+      accent-color: #fff;
+      cursor: pointer;
     }
 
-    label {
-      font-size: 22px;
+    .right-panel {
+      width: max-content;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-content: start;
+      justify-content: center;
+    }
 
+    .control-card {
+      width: max-content;
+      padding: 0;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 88px;
+    }
+
+    .control-card label {
+      font-size: 15px;
+      color: #f5f5f5;
       display: flex;
       align-items: center;
-      gap: 15px;
+      gap: 10px;
+    }
+
+    .control-card .fader-label {
+      font-size: 15px;
+      color: #f5f5f5;
+      margin-bottom: 2px;
     }
 
     input[type="checkbox"] {
-      width: 30px;
-      height: 30px;
+      width: 18px;
+      height: 18px;
+      accent-color: #fff;
+    }
+
+    input[type="range"] {
+      width: 110px;
+      accent-color: #fff;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid #000;
+      box-shadow: 0 0 0 1px #fff;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid #000;
+      box-shadow: 0 0 0 1px #fff;
+    }
+
+    @media (max-width: 760px) {
+      .players {
+        grid-template-columns: 1fr;
+      }
+
+      .controls {
+        width: min(92vw, 540px);
+        grid-template-columns: 1fr;
+      }
+
+      .left-panel {
+        border-bottom: 1px solid rgba(255,255,255,0.12);
+        padding-bottom: 20px;
+      }
+
+      .right-panel {
+        width: 100%;
+      }
     }
 
   </style>
@@ -71,23 +202,50 @@
 
 <body>
 
-  <div class="controls">
+  <template id="player-template">
+    <div class="controls">
+      <div class="player-title" data-role="player-title"></div>
 
-    <div class="buttons">
-      <button id="start">Start Rec</button>
-      <button id="stop">Stop Rec</button>
+      <div class="left-panel">
+        <div class="buttons">
+          <button data-role="start">Start Rec</button>
+          <button data-role="stop">Stop Rec</button>
+        </div>
+
+        <div class="volume-container">
+          <input class="volume-slider" data-role="volume" type="range" min="0" max="8" step="0.01" value="1" />
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <div class="control-card">
+          <label>
+            <input data-role="shuffle" type="checkbox" />
+            Shuffle
+          </label>
+        </div>
+
+        <div class="control-card">
+          <label>
+            <input data-role="octaveDownToggle" type="checkbox" />
+            Octave-down copies
+          </label>
+        </div>
+
+        <div class="control-card">
+          <div class="fader-label">Octave-down gain</div>
+          <input data-role="octaveDownFader" type="range" min="0" max="1" step="0.01" value="0.5" />
+        </div>
+
+        <div class="control-card">
+          <div class="fader-label">Reverse probability</div>
+          <input data-role="reverseProbabilityFader" type="range" min="0" max="1" step="0.01" value="0.5" />
+        </div>
+      </div>
     </div>
+  </template>
 
-    <div class="volume-container">
-      <input id="volume" type="range" min="0" max="8" step="0.01" value="1" />
-    </div>
-
-    <label>
-      <input id="shuffle" type="checkbox" />
-      Shuffle
-    </label>
-
-  </div>
+  <div id="players" class="players"></div>
 
   <script src="main.js"></script>
 
